@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+  <title>Gato Veloz · Delivery</title>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+  <style>
+    /* ========== GATO VELOZ · CLIENTE ========== */
+    :root {
+      --bg-primary: #0B0F17;
+      --bg-secondary: #161B22;
+      --bg-card: #1D2433;
+      --text-primary: #FFFFFF;
+      --text-secondary: #BFC8D4;
+      --border-color: rgba(0,183,255,0.15);
+      --neon-blue: #00B7FF;
+      --neon-blue-dark: #0066CC;
+      --orange-main: #FF7A00;
+      --orange-bright: #FFA500;
+      --shadow-glow: 0 0 30px rgba(0,183,255,0.08);
+      --shadow-card: 0 8px 32px rgba(0,0,0,0.6);
+      --radius-card: 16px;
+      --radius-btn: 30px;
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding-top: 72px;
+      padding-bottom: 90px;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* HEADER */
+    .app-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      background: rgba(11,15,23,0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 16px;
+      padding-top: calc(10px + env(safe-area-inset-top, 0px));
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .restaurante-logo-container {
+      flex-shrink: 0;
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--orange-main), var(--neon-blue));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      box-shadow: 0 0 20px rgba(255,122,0,0.3);
+    }
+
+    .restaurante-logo-container img {
+      display: none;
+    }
+    .restaurante-logo-container::after {
+      content: "🐱";
+    }
+
+    .header-info h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--orange-bright), var(--neon-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.3px;
+    }
+
+    .header-info .subtitulo {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    /* CATEGORÍAS */
+    .categorias-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 12px 16px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .categorias-scroll::-webkit-scrollbar { display: none; }
+
+    .cat-btn {
+      flex-shrink: 0;
+      padding: 8px 20px;
+      border-radius: var(--radius-btn);
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.25s ease;
+      white-space: nowrap;
+      letter-spacing: 0.2px;
+    }
+    .cat-btn.active {
+      background: linear-gradient(135deg, var(--orange-main), var(--neon-blue));
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 0 25px rgba(0,183,255,0.25);
+    }
+    .cat-btn:active { transform: scale(0.94); }
+
+    /* PRODUCTOS */
+    .productos-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      padding: 0 16px 16px;
+    }
+    @media (min-width: 480px) { .productos-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (min-width: 768px) { .productos-grid { grid-template-columns: repeat(4, 1fr); max-width: 960px; margin: 0 auto; } }
+
+    .producto-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--border-color);
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .producto-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--neon-blue);
+      box-shadow: 0 12px 40px rgba(0,183,255,0.1);
+    }
+    .producto-card.agotado { opacity: 0.5; pointer-events: none; }
+
+    .producto-card .img-wrap {
+      aspect-ratio: 4/3;
+      background: #0F141F;
+      overflow: hidden;
+      position: relative;
+    }
+    .producto-card .img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .producto-card .badge-agotado {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: none;
+      backdrop-filter: blur(4px);
+    }
+    .producto-card.agotado .badge-agotado { display: block; }
+
+    .producto-card .info {
+      padding: 10px 12px 14px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .producto-card .nombre {
+      font-weight: 600;
+      font-size: 0.85rem;
+      line-height: 1.3;
+      color: var(--text-primary);
+    }
+    .producto-card .precio {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--orange-bright);
+      margin-top: auto;
+    }
+
+    .producto-card .btn-add {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--orange-main), var(--neon-blue));
+      color: #fff;
+      border: none;
+      font-size: 1.4rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,183,255,0.35);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .producto-card .btn-add:active { transform: scale(0.88); }
+
+    /* FAB CARRITO */
+    .fab-carrito {
+      position: fixed;
+      bottom: calc(24px + env(safe-area-inset-bottom, 0px) + 60px);
+      right: calc(16px + env(safe-area-inset-right, 0px));
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--orange-main), var(--neon-blue));
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      z-index: 200;
+      box-shadow: 0 4px 30px rgba(0,183,255,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      transition: all 0.3s ease;
+    }
+    .fab-carrito:active { transform: scale(0.9); }
+
+    .fab-carrito .badge {
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      background: #fff;
+      color: var(--bg-primary);
+      font-size: 0.7rem;
+      font-weight: 800;
+      min-width: 24px;
+      height: 24px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 6px;
+      border: 2px solid var(--bg-primary);
+    }
+
+    /* BARRA PEDIDO ACTIVO */
+    .barra-pedido-activo {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 150;
+      background: var(--bg-card);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--border-color);
+      color: #fff;
+      padding: 12px 16px;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .barra-pedido-activo.visible { display: flex; }
+    .barra-pedido-activo .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--neon-blue);
+      animation: dotBlink 1.2s infinite;
+    }
+    @keyframes dotBlink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+
+    /* MODALES */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 300;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .overlay.centrado { align-items: center; }
+    .overlay.visible { display: flex; }
+
+    .modal {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-card) var(--radius-card) 0 0;
+      width: 100%;
+      max-width: 500px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 24px 18px;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -10px 40px rgba(0,0,0,0.6);
+      border: 1px solid var(--border-color);
+      border-bottom: none;
+    }
+    .modal.centrada {
+      border-radius: var(--radius-card);
+      margin: 16px;
+      max-height: 90vh;
+      border: 1px solid var(--border-color);
+    }
+
+    .modal h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      text-align: center;
+      background: linear-gradient(90deg, var(--orange-bright), var(--neon-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .btn-cerrar-modal {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+    .btn-cerrar-modal:active { background: rgba(255,255,255,0.05); }
+
+    /* INPUTS Y BOTONES */
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.04);
+      color: #fff;
+      font-size: 0.9rem;
+      transition: border 0.2s;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--neon-blue);
+      box-shadow: 0 0 0 3px rgba(0,183,255,0.15);
+    }
+
+    .btn-primario {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: var(--radius-btn);
+      font-weight: 700;
+      font-size: 0.95rem;
+      background: linear-gradient(135deg, var(--orange-main), var(--neon-blue));
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 20px rgba(0,183,255,0.25);
+    }
+    .btn-primario:active { transform: scale(0.97); }
+
+    .btn-secundario {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-btn);
+      background: transparent;
+      color: var(--text-primary);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-secundario:active { background: rgba(255,255,255,0.05); }
+
+    /* CARRITO ITEMS */
+    .carrito-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .carrito-item .ci-nombre { flex:1; font-weight:500; }
+    .carrito-item .ci-cantidad button {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-eliminar-item { background: none; border: none; color: #ff5a5a; font-size: 1.2rem; cursor: pointer; }
+
+    .total-destacado {
+      font-size: 1.4rem;
+      font-weight: 700;
+      text-align: center;
+      margin: 16px 0;
+      color: var(--orange-bright);
+    }
+
+    /* OPCIONES PAGO */
+    .opcion-pago {
+      flex: 1;
+      min-width: 120px;
+      padding: 20px 12px;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-card);
+      text-align: center;
+      cursor: pointer;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      transition: all 0.3s;
+    }
+    .opcion-pago:active { border-color: var(--neon-blue); background: rgba(0,183,255,0.05); }
+
+    /* SEGUIMIENTO */
+    .vista-seguimiento {
+      display: none;
+      padding: 16px;
+      padding-top: calc(72px + env(safe-area-inset-top, 0px));
+      min-height: 100vh;
+    }
+    .vista-seguimiento.visible { display: block; }
+
+    .pasos-seguimiento {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+      margin-bottom: 24px;
+    }
+    .paso {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      flex: 1;
+    }
+    .paso .circulo {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--bg-card);
+      margin: 0 auto 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-color);
+      transition: all 0.3s;
+    }
+    .paso.completado .circulo { background: var(--neon-blue); border-color: var(--neon-blue); }
+    .paso.activo .circulo { background: var(--orange-main); border-color: var(--orange-main); box-shadow: 0 0 20px rgba(255,122,0,0.4); }
+
+    /* CHAT */
+    .chat-container {
+      background: var(--bg-card);
+      border-radius: var(--radius-card);
+      padding: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border: 1px solid var(--border-color);
+    }
+    .chat-bubble.cliente {
+      align-self: flex-end;
+      background: linear-gradient(135deg, var(--orange-main), var(--neon-blue));
+      color: #fff;
+      border-radius: 18px 18px 4px 18px;
+      padding: 10px 14px;
+    }
+    .chat-bubble.admin {
+      align-self: flex-start;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border-radius: 18px 18px 18px 4px;
+      padding: 10px 14px;
+    }
+
+    .chat-input-row input {
+      flex: 1;
+      padding: 10px 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 30px;
+      background: rgba(255,255,255,0.04);
+      color: #fff;
+    }
+    .btn-enviar-msg {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: linear-gradient(135deg, var(--orange-main), var(--neon-blue));
+      color: #fff;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+
+    /* ESTRELLAS */
+    .estrellas-container .estrella { color: #3a3a4a; font-size: 2.5rem; cursor: pointer; transition: color 0.2s; }
+    .estrellas-container .estrella.activa { color: var(--orange-bright); }
+
+    /* MAPAS */
+    #tracking-map, #mapa-seleccion-ubicacion {
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+    }
+
+    /* UTILIDADES */
+    .text-center { text-align: center; }
+    .mt-2 { margin-top: 12px; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="restaurante-logo-container"></div>
+    <div class="header-info">
+      <h1>Chefs Gato</h1>
+      <p class="subtitulo">🐱 Gato Veloz · Delivery</p>
+    </div>
+  </header>
+
+  <!-- CATÁLOGO -->
+  <main id="vista-catalogo">
+    <nav class="categorias-scroll" id="categorias-scroll">
+      <button class="cat-btn active" data-cat="todo">Todo</button>
+    </nav>
+    <div class="productos-grid" id="productos-grid">
+      <p class="text-center" style="grid-column:1/-1;padding:40px;color:var(--text-secondary);">Cargando menú...</p>
+    </div>
+  </main>
+
+  <!-- SEGUIMIENTO -->
+  <section class="vista-seguimiento" id="vista-seguimiento">
+    <h2 style="text-align:center;margin-bottom:12px;">📦 Seguimiento</h2>
+    <div class="pasos-seguimiento" id="pasos-seguimiento">
+      <div class="paso" data-estado="pendiente"><div class="circulo">1</div>Pendiente</div>
+      <div class="paso" data-estado="en_cocina"><div class="circulo">2</div>Cocina</div>
+      <div class="paso" data-estado="en_camino"><div class="circulo">3</div>Camino</div>
+      <div class="paso" data-estado="entregado"><div class="circulo">4</div>Entregado</div>
+    </div>
+    <div id="map-container" style="margin:16px 0;border-radius:var(--radius-card);overflow:hidden;">
+      <div id="tracking-map" style="height:300px;width:100%;"></div>
+    </div>
+    <div id="mensaje-pre-mapa" style="text-align:center;padding:20px;color:var(--text-secondary);">
+      El restaurante está procesando tu orden...
+    </div>
+    <div class="chat-container" id="chat-container"></div>
+    <div class="chat-input-row" style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-adjuntar" id="btn-adjuntar" style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:50%;width:40px;height:40px;color:#fff;">📎</button>
+      <input type="file" id="input-file-oculto" accept="image/*" style="display:none;">
+      <input type="text" id="input-mensaje" placeholder="Escribe un mensaje..." autocomplete="off">
+      <button class="btn-enviar-msg" id="btn-enviar-msg">➤</button>
+    </div>
+    <button class="btn-volver-catalogo" id="btn-volver-catalogo" style="margin-top:16px;padding:10px 20px;background:var(--bg-card);border:1px solid var(--border-color);border-radius:30px;color:#fff;cursor:pointer;">← Volver</button>
+  </section>
+
+  <!-- FAB CARRITO -->
+  <button class="fab-carrito" id="fab-carrito">
+    🛒
+    <span class="badge" id="badge-carrito" style="display:none;">0</span>
+  </button>
+
+  <!-- BARRA PEDIDO ACTIVO -->
+  <div class="barra-pedido-activo" id="barra-pedido-activo">
+    <span class="dot"></span>
+    <span>📋 Pedido activo</span>
+    <span class="flecha">›</span>
+  </div>
+
+  <!-- OVERLAY CARRITO -->
+  <div class="overlay" id="overlay-carrito">
+    <div class="modal" id="modal-carrito" style="position:relative;">
+      <button class="btn-cerrar-modal" id="btn-cerrar-carrito">✕</button>
+      <h2>🛒 Tu Carrito</h2>
+      <div id="carrito-items-container"><p class="carrito-vacio" style="color:var(--text-secondary);">Vacío</p></div>
+      <div class="total-destacado" id="carrito-total" style="display:none;">Total: Bs 0</div>
+      <div id="form-entrega" style="display:none;">
+        <h3 style="font-size:1rem;margin-bottom:8px;">📝 Datos de entrega</h3>
+        <div class="form-group"><label style="color:var(--text-secondary);">Nombre *</label><input type="text" id="input-nombre" placeholder="Ej: Juan Pérez"></div>
+        <div class="form-group"><label style="color:var(--text-secondary);">Dirección *</label><input type="text" id="input-direccion" placeholder="Calle, n.º, zona..."></div>
+        <div class="form-group"><label style="color:var(--text-secondary);">Teléfono *</label><input type="tel" id="input-telefono" placeholder="71234567"></div>
+        <button class="btn-primario" id="btn-revisar-pedido">📍 Seleccionar ubicación</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERLAY MAPA UBICACIÓN -->
+  <div class="overlay centrado" id="overlay-mapa-ubicacion">
+    <div class="modal centrada" style="position:relative;max-width:500px;width:95%;">
+      <button class="btn-cerrar-modal" id="btn-cerrar-mapa-ubicacion">✕</button>
+      <h2>📍 Confirma tu ubicación</h2>
+      <div id="mapa-seleccion-ubicacion" style="height:350px;border-radius:var(--radius-card);margin-bottom:12px;"></div>
+      <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:12px;">Arrastra el pin o toca el mapa.</p>
+      <button class="btn-primario" id="btn-confirmar-ubicacion">✅ Confirmar</button>
+    </div>
+  </div>
+
+  <!-- OVERLAY REVISIÓN -->
+  <div class="overlay centrado" id="overlay-revision">
+    <div class="modal centrada" style="position:relative;max-width:440px;">
+      <button class="btn-cerrar-modal" id="btn-cerrar-revision">✕</button>
+      <h2>📋 Revisión</h2>
+      <div id="revision-desglose"></div>
+      <div class="total-destacado" id="revision-total"></div>
+      <button class="btn-secundario" id="btn-editar-pedido">✏️ Editar</button>
+      <button class="btn-primario mt-2" id="btn-proceder-pago">💳 Pagar</button>
+    </div>
+  </div>
+
+  <!-- OVERLAY MÉTODO PAGO -->
+  <div class="overlay centrado" id="overlay-metodo-pago">
+    <div class="modal centrada" style="position:relative;max-width:400px;">
+      <button class="btn-cerrar-modal" id="btn-cerrar-metodo-pago">✕</button>
+      <h2>💳 Método de Pago</h2>
+      <div class="opciones-pago" style="display:flex;gap:12px;">
+        <div class="opcion-pago" id="opcion-efectivo"><span class="emoji" style="display:block;font-size:2rem;">💵</span> Efectivo</div>
+        <div class="opcion-pago" id="opcion-qr"><span class="emoji" style="display:block;font-size:2rem;">📱</span> QR</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERLAY QR -->
+  <div class="overlay centrado" id="overlay-qr">
+    <div class="modal centrada" style="position:relative;max-width:400px;">
+      <button class="btn-cerrar-modal" id="btn-cerrar-qr">✕</button>
+      <h2>📱 Escanea el QR</h2>
+      <div class="qr-img-wrap" style="text-align:center;margin:16px 0;">
+        <img id="qr-imagen" src="https://placehold.co/400x400/1D2433/00B7FF?text=QR+Gato" alt="QR" style="max-width:260px;border-radius:var(--radius-card);border:1px solid var(--border-color);">
+      </div>
+      <button class="btn-secundario" id="btn-descargar-qr">📥 Descargar</button>
+      <button class="btn-primario mt-2" id="btn-listo-seguimiento">✅ Listo</button>
+    </div>
+  </div>
+
+  <!-- OVERLAY CALIFICACIÓN -->
+  <div class="overlay centrado" id="overlay-calificacion">
+    <div class="modal centrada" style="position:relative;max-width:400px;">
+      <h2>🎉 ¡Entregado!</h2>
+      <p style="text-align:center;color:var(--text-secondary);">Califícanos</p>
+      <div class="estrellas-container" id="estrellas-container">
+        <span class="estrella" data-val="1">★</span>
+        <span class="estrella" data-val="2">★</span>
+        <span class="estrella" data-val="3">★</span>
+        <span class="estrella" data-val="4">★</span>
+        <span class="estrella" data-val="5">★</span>
+      </div>
+      <p class="texto-calificacion" id="texto-calificacion" style="text-align:center;font-weight:600;min-height:24px;"></p>
+      <button class="btn-primario" id="btn-enviar-calificacion" disabled>Enviar</button>
+    </div>
+  </div>
+
+  <!-- SCRIPTS (intactos) -->
+  <script type="module">
+    // ─── IMPORTS FIREBASE v10 ────────────────────────────
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set, push, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    // ─── CONFIGURACIÓN FIREBASE ──────────────────────────
+    const firebaseConfig = {
+      apiKey: "AIzaSyDgApffq4PiRvrN5FTMqOWm-vIOb5ZEsvc",
+      authDomain: "base-de-datos-2026-c180f.firebaseapp.com",
+      databaseURL: "https://base-de-datos-2026-c180f-default-rtdb.firebaseio.com",
+      projectId: "base-de-datos-2026-c180f",
+      storageBucket: "base-de-datos-2026-c180f.firebasestorage.app",
+      messagingSenderId: "34629949457",
+      appId: "1:34629949457:web:0047bff04014d0104df9b0"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ─── ESTADO GLOBAL (respetando nombres originales) ────
+    let carrito = [];
+    let productosMap = {};
+    let categoriasNombres = [];
+    let categoriaActiva = 'todo';
+    let pedidoActualId = null;
+    let estadoPedidoActual = null;
+    let calificacionEstrellas = 0;
+    let calificacionYaMostrada = false;
+    let listenersActivos = {};
+    
+    // Variables de mapas
+    let mapaSeguimiento = null;               // Mapa de seguimiento
+    let routingControl = null;                // Control de enrutamiento
+    let marcadorRepartidor = null;            // Marcador del repartidor
+    let marcadorClienteSeguimiento = null;    // Marcador del cliente en seguimiento
+    let mapaSeleccionUbicacion = null;        // Mapa de selección en checkout
+    let marcadorSeleccion = null;             // Marcador arrastrable en checkout
+    let ubicacionSeleccionada = { lat: -16.5000, lng: -68.1500 }; // Coordenadas iniciales Bolivia
+    let datosFormularioTemporal = null;       // Para guardar datos del formulario mientras se elige ubicación
+
+    // ─── REFERENCIAS DOM ────────────────────────────────
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+
+    const vistaCatalogo = $('#vista-catalogo');
+    const vistaSeguimiento = $('#vista-seguimiento');
+    const barraPedidoActivo = $('#barra-pedido-activo');
+    const fabCarrito = $('#fab-carrito');
+    const badgeCarrito = $('#badge-carrito');
+
+    const overlayCarrito = $('#overlay-carrito');
+    const overlayMapaUbicacion = $('#overlay-mapa-ubicacion');
+    const overlayRevision = $('#overlay-revision');
+    const overlayMetodoPago = $('#overlay-metodo-pago');
+    const overlayQr = $('#overlay-qr');
+    const overlayCalificacion = $('#overlay-calificacion');
+
+    // ─── UTILIDADES ─────────────────────────────────────
+    function formatPrecio(p) { return `Bs ${Number(p).toFixed(0)}`; }
+    function guardarPedidoLocalStorage(data) { localStorage.setItem('pedidoActivo', JSON.stringify(data)); }
+    function obtenerPedidoLocalStorage() { try { return JSON.parse(localStorage.getItem('pedidoActivo')); } catch (e) { return null; } }
+    function limpiarPedidoLocalStorage() { localStorage.removeItem('pedidoActivo'); }
+    function actualizarBadge() {
+      const total = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+      badgeCarrito.textContent = total;
+      badgeCarrito.style.display = total > 0 ? 'flex' : 'none';
+    }
+    function animarBadge() {
+      badgeCarrito.classList.remove('pulse');
+      void badgeCarrito.offsetWidth;
+      badgeCarrito.classList.add('pulse');
+    }
+
+    function cerrarTodosOverlays() {
+      [overlayCarrito, overlayMapaUbicacion, overlayRevision, overlayMetodoPago, overlayQr, overlayCalificacion].forEach(o => o.classList.remove('visible'));
+    }
+    function abrirOverlay(overlay) {
+      cerrarTodosOverlays();
+      overlay.classList.add('visible');
+    }
+
+    // ─── RENDERIZAR CATEGORÍAS ──────────────────────────
+    function renderizarCategorias(nombres) {
+      categoriasNombres = nombres;
+      const scroll = $('#categorias-scroll');
+      scroll.querySelectorAll('.cat-btn:not([data-cat="todo"])').forEach(b => b.remove());
+      nombres.forEach(nombre => {
+        const btn = document.createElement('button');
+        btn.className = 'cat-btn';
+        btn.dataset.cat = nombre;
+        btn.textContent = nombre;
+        btn.addEventListener('click', () => {
+          categoriaActiva = nombre;
+          $$('.cat-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          filtrarProductos();
+        });
+        scroll.appendChild(btn);
+      });
+      const btnTodo = scroll.querySelector('[data-cat="todo"]');
+      if (btnTodo) {
+        btnTodo.addEventListener('click', () => {
+          categoriaActiva = 'todo';
+          $$('.cat-btn').forEach(b => b.classList.remove('active'));
+          btnTodo.classList.add('active');
+          filtrarProductos();
+        });
+      }
+    }
+
+    // ─── RENDERIZAR PRODUCTOS ──────────────────────────
+    function renderizarProductos(productos) {
+      productosMap = {};
+      productos.forEach(p => { productosMap[p.id] = p; });
+      filtrarProductos();
+    }
+
+    function filtrarProductos() {
+      const grid = $('#productos-grid');
+      grid.innerHTML = '';
+      let filtrados = Object.values(productosMap);
+      if (categoriaActiva !== 'todo') {
+        filtrados = filtrados.filter(p => p.categoria === categoriaActiva);
+      }
+      if (filtrados.length === 0) {
+        grid.innerHTML = '<p class="text-center" style="grid-column:1/-1;padding:30px;">No hay productos.</p>';
+        return;
+      }
+      filtrados.forEach(p => {
+        const card = document.createElement('div');
+        card.className = 'producto-card' + (p.stock === 0 ? ' agotado' : '');
+        card.dataset.id = p.id;
+        card.innerHTML = `
+          <div class="img-wrap">
+            <img src="${p.imagen || 'https://placehold.co/400x300/f0ede8/999?text=Plato'}" alt="${p.nombre}" loading="lazy">
+            <span class="badge-agotado">Agotado</span>
+          </div>
+          <div class="info">
+            <span class="nombre">${p.nombre}</span>
+            <span class="precio">${formatPrecio(p.precio)}</span>
+          </div>
+          ${p.stock > 0 ? `<button class="btn-add" data-id="${p.id}" aria-label="Agregar">+</button>` : ''}
+        `;
+        grid.appendChild(card);
+      });
+      grid.querySelectorAll('.btn-add').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          agregarAlCarrito(btn.dataset.id);
+        });
+      });
+    }
+
+    function agregarAlCarrito(id) {
+      const producto = productosMap[id];
+      if (!producto || producto.stock <= 0) return;
+      const existente = carrito.find(item => item.id === id);
+      const cantidadActual = existente ? existente.cantidad : 0;
+      if (cantidadActual >= producto.stock) {
+        alert(`⚠️ Solo hay ${producto.stock} unidades de "${producto.nombre}".`);
+        return;
+      }
+      if (existente) existente.cantidad++;
+      else carrito.push({ id, nombre: producto.nombre, precio: producto.precio, cantidad: 1 });
+      actualizarBadge();
+      animarBadge();
+      if (navigator.vibrate) navigator.vibrate(15);
+    }
+
+    // ─── CARRITO ────────────────────────────────────────
+    function eliminarItemCarrito(idx) {
+      carrito.splice(idx, 1);
+      actualizarBadge();
+      renderizarCarrito();
+    }
+
+    function renderizarCarrito() {
+      const container = $('#carrito-items-container');
+      const formEntrega = $('#form-entrega');
+      const totalEl = $('#carrito-total');
+
+      if (carrito.length === 0) {
+        container.innerHTML = '<p class="carrito-vacio">Tu carrito está vacío.</p>';
+        formEntrega.style.display = 'none';
+        totalEl.style.display = 'none';
+        return;
+      }
+
+      let html = '';
+      carrito.forEach((item, idx) => {
+        const producto = productosMap[item.id];
+        const stockMax = producto ? producto.stock : 99;
+        html += `
+          <div class="carrito-item">
+            <span class="ci-nombre">${item.nombre}</span>
+            <div class="ci-cantidad">
+              <button data-idx="${idx}" data-accion="restar" ${item.cantidad <= 1 ? 'disabled style="opacity:0.4;"' : ''}>−</button>
+              <span>${item.cantidad}</span>
+              <button data-idx="${idx}" data-accion="sumar" ${item.cantidad >= stockMax ? 'disabled style="opacity:0.4;"' : ''}>+</button>
+            </div>
+            <span style="font-weight:700;min-width:50px;text-align:right;">${formatPrecio(item.precio * item.cantidad)}</span>
+            <button class="btn-eliminar-item" data-idx="${idx}" title="Eliminar producto">🗑️</button>
+          </div>`;
+      });
+      container.innerHTML = html;
+      formEntrega.style.display = 'block';
+      const total = carrito.reduce((sum, item) => sum + item.precio * item.cantidad, 0);
+      totalEl.textContent = `Total a Pagar: ${formatPrecio(total)}`;
+      totalEl.style.display = 'block';
+
+      container.querySelectorAll('button[data-accion]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.idx);
+          const accion = btn.dataset.accion;
+          const item = carrito[idx];
+          const prod = productosMap[item.id];
+          const max = prod ? prod.stock : 99;
+          if (accion === 'sumar' && item.cantidad < max) item.cantidad++;
+          else if (accion === 'restar' && item.cantidad > 1) item.cantidad--;
+          else if (accion === 'restar' && item.cantidad === 1) carrito.splice(idx, 1);
+          actualizarBadge();
+          renderizarCarrito();
+        });
+      });
+
+      container.querySelectorAll('.btn-eliminar-item').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.idx);
+          eliminarItemCarrito(idx);
+        });
+      });
+    }
+
+    // ─── VALIDACIÓN FORMULARIO ─────────────────────────
+    function obtenerDatosFormulario() {
+      return {
+        nombre: $('#input-nombre').value.trim(),
+        direccion: $('#input-direccion').value.trim(),
+        telefono: $('#input-telefono').value.trim()
+      };
+    }
+    function validarFormulario() {
+      const { nombre, direccion, telefono } = obtenerDatosFormulario();
+      if (!nombre) { alert('⚠️ Ingresa tu nombre completo.'); return false; }
+      if (!direccion) { alert('⚠️ Ingresa tu dirección de entrega.'); return false; }
+      if (!telefono || !/^\d{7,8}$/.test(telefono.replace(/\s/g, ''))) {
+        alert('⚠️ Ingresa un teléfono válido (7-8 dígitos).');
+        return false;
+      }
+      return true;
+    }
+
+    // ─── MAPA DE SELECCIÓN DE UBICACIÓN (CHECKOUT) ──────
+    function inicializarMapaSeleccion() {
+      if (mapaSeleccionUbicacion) return;
+      mapaSeleccionUbicacion = L.map('mapa-seleccion-ubicacion').setView([-16.5000, -68.1500], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(mapaSeleccionUbicacion);
+
+      marcadorSeleccion = L.marker([-16.5000, -68.1500], { draggable: true }).addTo(mapaSeleccionUbicacion);
+      ubicacionSeleccionada = { lat: -16.5000, lng: -68.1500 };
+
+      mapaSeleccionUbicacion.on('click', function(e) {
+        marcadorSeleccion.setLatLng(e.latlng);
+        ubicacionSeleccionada = { lat: e.latlng.lat, lng: e.latlng.lng };
+      });
+
+      marcadorSeleccion.on('dragend', function(e) {
+        const pos = marcadorSeleccion.getLatLng();
+        ubicacionSeleccionada = { lat: pos.lat, lng: pos.lng };
+      });
+    }
+
+    // ─── SUBIR PEDIDO A FIREBASE ────────────────────────
+    async function subirPedido(metodoPago) {
+      const datos = datosFormularioTemporal; // Usamos los datos guardados del paso anterior
+      const id = Date.now().toString();
+      const total = carrito.reduce((sum, item) => sum + item.precio * item.cantidad, 0);
+      const pedidoData = {
+        cliente: { 
+          nombre: datos.nombre, 
+          direccion: datos.direccion, 
+          telefono: datos.telefono 
+        },
+        items: carrito.map(item => ({ 
+          id: item.id, 
+          nombre: item.nombre, 
+          precio: item.precio, 
+          cantidad: item.cantidad, 
+          subtotal: item.precio * item.cantidad 
+        })),
+        total, 
+        estado: 'pendiente', 
+        metodoPago,
+        timestamp: new Date().toISOString(),
+        // 🆕 Nuevos campos para ubicación
+        ubicacionCliente: {
+          lat: ubicacionSeleccionada.lat,
+          lng: ubicacionSeleccionada.lng,
+          direccionEscrita: datos.direccion
+        },
+        ubicacionRepartidor: {
+          lat: null,
+          lng: null,
+          ultimaActualizacion: null
+        }
+      };
+      try {
+        await set(ref(db, 'pedidos/' + id), pedidoData);
+        pedidoActualId = id;
+        estadoPedidoActual = 'pendiente';
+        guardarPedidoLocalStorage({ id, estado: 'pendiente', timestamp: Date.now() });
+        carrito = [];
+        actualizarBadge();
+        renderizarCarrito();
+        ['nombre','direccion','telefono'].forEach(id => $(`#input-${id}`).value = '');
+        cerrarTodosOverlays();
+        mostrarSeguimiento(id);
+      } catch (error) {
+        console.error('Error al subir pedido:', error);
+        alert('❌ Error al procesar el pedido. Intenta de nuevo.');
+      }
+    }
+
+    // ─── VISTA SEGUIMIENTO (con mapa y enrutamiento) ────
+    function mostrarSeguimiento(id) {
+      vistaCatalogo.style.display = 'none';
+      vistaSeguimiento.classList.add('visible');
+      barraPedidoActivo.classList.remove('visible');
+      pedidoActualId = id;
+      
+      // Iniciar listeners
+      iniciarListenerEstado(id);
+      iniciarListenerChat(id);
+      actualizarBarraPedidoActivo();
+      
+      // Inicializar mapa de seguimiento (se activará cuando el estado sea "en_camino")
+      $('#map-container').style.display = 'none';
+      $('#mensaje-pre-mapa').style.display = 'block';
+      
+      // Si ya hay mapa, lo limpiamos
+      if (mapaSeguimiento) {
+        mapaSeguimiento.remove();
+        mapaSeguimiento = null;
+        routingControl = null;
+        marcadorRepartidor = null;
+        marcadorClienteSeguimiento = null;
+      }
+    }
+
+    function ocultarSeguimiento() {
+      vistaSeguimiento.classList.remove('visible');
+      vistaCatalogo.style.display = '';
+      // Limpiar listeners
+      if (listenersActivos.estado) { 
+        off(ref(db, 'pedidos/' + pedidoActualId + '/estado'), 'value', listenersActivos.estado); 
+        listenersActivos.estado = null; 
+      }
+      if (listenersActivos.chat) { 
+        off(ref(db, 'pedidos/' + pedidoActualId + '/chat'), 'value', listenersActivos.chat); 
+        listenersActivos.chat = null; 
+      }
+      if (listenersActivos.ubicacionRepartidor) {
+        off(ref(db, 'pedidos/' + pedidoActualId + '/ubicacionRepartidor'), 'value', listenersActivos.ubicacionRepartidor);
+        listenersActivos.ubicacionRepartidor = null;
+      }
+      if (mapaSeguimiento) {
+        mapaSeguimiento.remove();
+        mapaSeguimiento = null;
+        routingControl = null;
+        marcadorRepartidor = null;
+        marcadorClienteSeguimiento = null;
+      }
+      actualizarBarraPedidoActivo();
+    }
+
+    function actualizarBarraPedidoActivo() {
+      const data = obtenerPedidoLocalStorage();
+      barraPedidoActivo.classList.toggle('visible', 
+        data && data.estado !== 'entregado' && data.estado !== 'cancelado' && !vistaSeguimiento.classList.contains('visible')
+      );
+    }
+
+    function iniciarListenerEstado(id) {
+      if (listenersActivos.estado) {
+        off(ref(db, 'pedidos/' + id + '/estado'), 'value', listenersActivos.estado);
+      }
+      const estadoRef = ref(db, 'pedidos/' + id + '/estado');
+      const callback = onValue(estadoRef, (snap) => {
+        const estado = snap.val();
+        if (!estado) return;
+        
+        estadoPedidoActual = estado;
+        actualizarPasosSeguimiento(estado);
+        
+        // Manejar cancelación
+        if (estado === 'cancelado') {
+          limpiarPedidoLocalStorage();
+          pedidoActualId = null;
+          estadoPedidoActual = null;
+          if (listenersActivos.estado) { 
+            off(estadoRef, 'value', listenersActivos.estado); 
+            listenersActivos.estado = null; 
+          }
+          if (vistaSeguimiento.classList.contains('visible')) {
+            ocultarSeguimiento();
+          }
+          actualizarBarraPedidoActivo();
+          alert('El pedido ha sido cancelado por el restaurante.');
+          return;
+        }
+
+        // Si el estado es "en_camino", activar mapa con enrutamiento
+        if (estado === 'en_camino') {
+          $('#map-container').style.display = 'block';
+          $('#mensaje-pre-mapa').style.display = 'none';
+          inicializarMapaSeguimiento(id);
+        } else {
+          $('#map-container').style.display = 'none';
+          $('#mensaje-pre-mapa').style.display = 'block';
+        }
+
+        // Si es entregado, mostrar calificación
+        if (estado === 'entregado' && !calificacionYaMostrada) {
+          calificacionYaMostrada = true;
+          limpiarPedidoLocalStorage();
+          barraPedidoActivo.classList.remove('visible');
+          setTimeout(() => {
+            if (listenersActivos.estado) { 
+              off(estadoRef, 'value', listenersActivos.estado); 
+              listenersActivos.estado = null; 
+            }
+            if (listenersActivos.chat) { 
+              off(ref(db, 'pedidos/' + id + '/chat'), 'value', listenersActivos.chat); 
+              listenersActivos.chat = null; 
+            }
+            mostrarCalificacion(id);
+          }, 1200);
+        }
+
+        // Actualizar localStorage
+        const local = obtenerPedidoLocalStorage();
+        if (local && local.id === id) { 
+          local.estado = estado; 
+          guardarPedidoLocalStorage(local); 
+        }
+      });
+      listenersActivos.estado = callback;
+    }
+
+    function inicializarMapaSeguimiento(pedidoId) {
+      // Obtener ubicación del cliente desde el pedido
+      onValue(ref(db, 'pedidos/' + pedidoId + '/ubicacionCliente'), (snap) => {
+        const ubicacionCliente = snap.val();
+        if (!ubicacionCliente || !ubicacionCliente.lat) return;
+        
+        if (!mapaSeguimiento) {
+          mapaSeguimiento = L.map('tracking-map').setView([ubicacionCliente.lat, ubicacionCliente.lng], 14);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap'
+          }).addTo(mapaSeguimiento);
+          
+          // Marcador del cliente
+          const clienteIcon = L.divIcon({
+            html: '📍',
+            className: 'emoji-marker',
+            iconSize: [30, 30],
+            iconAnchor: [15, 30]
+          });
+          marcadorClienteSeguimiento = L.marker([ubicacionCliente.lat, ubicacionCliente.lng], { icon: clienteIcon })
+            .addTo(mapaSeguimiento)
+            .bindPopup('Tu ubicación').openPopup();
+          
+          // Marcador del repartidor (inicialmente invisible)
+          const motoIcon = L.divIcon({
+            html: '🏍️',
+            className: 'emoji-marker moto',
+            iconSize: [36, 36],
+            iconAnchor: [18, 36]
+          });
+          marcadorRepartidor = L.marker([0,0], { icon: motoIcon }).addTo(mapaSeguimiento);
+          marcadorRepartidor.setOpacity(0);
+        }
+        
+        // Escuchar ubicación del repartidor
+        if (listenersActivos.ubicacionRepartidor) {
+          off(ref(db, 'pedidos/' + pedidoId + '/ubicacionRepartidor'), 'value', listenersActivos.ubicacionRepartidor);
+        }
+        const repRef = ref(db, 'pedidos/' + pedidoId + '/ubicacionRepartidor');
+        listenersActivos.ubicacionRepartidor = onValue(repRef, (repSnap) => {
+          const rep = repSnap.val();
+          if (rep && rep.lat && rep.lng && mapaSeguimiento) {
+            actualizarRutaRepartidor(rep.lat, rep.lng, ubicacionCliente);
+          }
+        });
+      }, { onlyOnce: false });
+    }
+
+    function actualizarRutaRepartidor(latRep, lngRep, ubicacionCliente) {
+      if (!mapaSeguimiento) return;
+      
+      // Mostrar marcador repartidor
+      marcadorRepartidor.setLatLng([latRep, lngRep]).setOpacity(1);
+      
+      if (!routingControl) {
+        routingControl = L.Routing.control({
+          waypoints: [
+            L.latLng(latRep, lngRep),
+            L.latLng(ubicacionCliente.lat, ubicacionCliente.lng)
+          ],
+          lineOptions: { styles: [{ color: '#1d4ed8', weight: 5 }] },
+          createMarker: function() { return null; },
+          routeWhileDragging: false,
+          show: false,
+          addWaypoints: false
+        }).addTo(mapaSeguimiento);
+      } else {
+        routingControl.setWaypoints([
+          L.latLng(latRep, lngRep),
+          L.latLng(ubicacionCliente.lat, ubicacionCliente.lng)
+        ]);
+      }
+      
+      // Ajustar vista para mostrar ambos puntos
+      const bounds = L.latLngBounds([latRep, lngRep], [ubicacionCliente.lat, ubicacionCliente.lng]);
+      mapaSeguimiento.fitBounds(bounds, { padding: [30, 30] });
+    }
+
+    function actualizarPasosSeguimiento(estado) {
+      const orden = ['pendiente', 'en_cocina', 'en_camino', 'entregado'];
+      const idx = orden.indexOf(estado);
+      $$('#pasos-seguimiento .paso').forEach((paso, i) => {
+        paso.classList.remove('completado', 'activo');
+        if (i < idx) paso.classList.add('completado');
+        if (i === idx) paso.classList.add('activo');
+      });
+    }
+
+    function iniciarListenerChat(id) {
+      if (listenersActivos.chat) {
+        off(ref(db, 'pedidos/' + id + '/chat'), 'value', listenersActivos.chat);
+      }
+      const chatRef = ref(db, 'pedidos/' + id + '/chat');
+      listenersActivos.chat = onValue(chatRef, (snap) => {
+        const data = snap.val();
+        renderizarChat(data);
+      });
+    }
+
+    function renderizarChat(data) {
+      const container = $('#chat-container');
+      if (!data) {
+        container.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">No hay mensajes aún.</p>';
+        return;
+      }
+      const mensajes = Object.entries(data).map(([key, val]) => ({ key, ...val }));
+      mensajes.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      let html = '';
+      mensajes.forEach(msg => {
+        const esCliente = msg.remitente === 'cliente';
+        const clase = esCliente ? 'cliente' : 'admin';
+        let contenido = '';
+        if (msg.texto) contenido += `<span>${escaparHTML(msg.texto)}</span>`;
+        if (msg.imagenBase64) contenido += `<img src="${msg.imagenBase64}" alt="Adjunto" loading="lazy" style="max-width:200px;border-radius:10px;display:block;margin-top:4px;">`;
+        html += `<div class="chat-bubble ${clase}">${contenido}</div>`;
+      });
+      container.innerHTML = html;
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function escaparHTML(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    async function enviarMensajeTexto() {
+      const input = $('#input-mensaje');
+      const texto = input.value.trim();
+      if (!texto || !pedidoActualId) return;
+      input.value = '';
+      try {
+        await push(ref(db, 'pedidos/' + pedidoActualId + '/chat'), {
+          remitente: 'cliente',
+          texto: texto,
+          timestamp: Date.now()
+        });
+      } catch (e) {
+        console.error('Error al enviar mensaje:', e);
+        alert('No se pudo enviar el mensaje.');
+      }
+    }
+
+    async function enviarImagen(base64) {
+      if (!pedidoActualId) return;
+      try {
+        await push(ref(db, 'pedidos/' + pedidoActualId + '/chat'), {
+          remitente: 'cliente',
+          imagenBase64: base64,
+          timestamp: Date.now()
+        });
+      } catch (e) {
+        console.error('Error al enviar imagen:', e);
+        alert('No se pudo enviar la imagen.');
+      }
+    }
+
+    function procesarImagen(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let w = img.width, h = img.height;
+            if (w > 800) { h = Math.round((800 / w) * h); w = 800; }
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // ─── CALIFICACIÓN ───────────────────────────────────
+    function mostrarCalificacion(id) {
+      calificacionEstrellas = 0;
+      calificacionYaMostrada = true;
+      vistaSeguimiento.classList.remove('visible');
+      vistaCatalogo.style.display = '';
+      pedidoActualId = id;
+      actualizarEstrellasUI();
+      $('#texto-calificacion').textContent = '';
+      $('#btn-enviar-calificacion').disabled = true;
+      abrirOverlay(overlayCalificacion);
+    }
+
+    function actualizarEstrellasUI() {
+      $$('#estrellas-container .estrella').forEach((e, i) => {
+        e.classList.toggle('activa', i < calificacionEstrellas);
+      });
+      const textos = {1:'Pésimo 😡',2:'Malo 🙁',3:'Regular 😐',4:'Bueno 😊',5:'Excelente 🤩'};
+      $('#texto-calificacion').textContent = textos[calificacionEstrellas] || '';
+      $('#btn-enviar-calificacion').disabled = calificacionEstrellas === 0;
+    }
+
+    async function enviarCalificacion() {
+      if (!calificacionEstrellas || !pedidoActualId) return;
+      try {
+        await set(ref(db, 'calificaciones/' + pedidoActualId), {
+          estrellas: calificacionEstrellas,
+          fecha: new Date().toISOString()
+        });
+        overlayCalificacion.classList.remove('visible');
+        pedidoActualId = null;
+        estadoPedidoActual = null;
+        calificacionYaMostrada = false;
+        calificacionEstrellas = 0;
+        limpiarPedidoLocalStorage();
+        barraPedidoActivo.classList.remove('visible');
+        actualizarBarraPedidoActivo();
+      } catch (e) {
+        console.error('Error al enviar calificación:', e);
+      }
+    }
+
+    function descargarQR() {
+      const img = $('#qr-imagen');
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      canvas.getContext('2d').drawImage(img, 0, 0);
+      const link = document.createElement('a');
+      link.download = 'qr-pago.png';
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // ─── INICIALIZACIÓN FIREBASE ─────────────────────────
+    function iniciarApp() {
+      onValue(ref(db, 'menu/categorias'), (snap) => {
+        const data = snap.val();
+        const nombres = [];
+        if (data) {
+          Object.keys(data).forEach(key => {
+            const val = data[key];
+            if (typeof val === 'object' && val.nombre) nombres.push(val.nombre);
+            else if (typeof val === 'string') nombres.push(val.trim());
+          });
+        }
+        renderizarCategorias(nombres);
+      });
+
+      onValue(ref(db, 'menu/productos'), (snap) => {
+        const data = snap.val();
+        const prods = [];
+        if (data) {
+          Object.keys(data).forEach(key => {
+            const p = data[key];
+            if (p && typeof p === 'object') {
+              prods.push({
+                id: key,
+                nombre: p.nombre || 'Sin nombre',
+                precio: Number(p.precio) || 0,
+                stock: Number(p.stock) || 0,
+                categoria: p.categoria || '',
+                imagen: p.imagen || null
+              });
+            }
+          });
+        }
+        renderizarProductos(prods);
+      });
+    }
+
+    // Cargar QR desde Firebase
+    const qrImg = $('#qr-imagen');
+    onValue(ref(db, 'ajustes/qr_empresa'), (snap) => {
+      const qrBase64 = snap.val();
+      if (qrBase64 && typeof qrBase64 === 'string' && qrBase64.startsWith('data:image')) {
+        qrImg.src = qrBase64;
+      } else {
+        qrImg.src = 'https://placehold.co/400x400/333333/ffffff?text=QR+Code';
+      }
+    });
+
+    // ─── EVENTOS ─────────────────────────────────────────
+    fabCarrito.addEventListener('click', () => {
+      renderizarCarrito();
+      abrirOverlay(overlayCarrito);
+    });
+    $('#btn-cerrar-carrito').addEventListener('click', () => overlayCarrito.classList.remove('visible'));
+    overlayCarrito.addEventListener('click', (e) => { if (e.target === overlayCarrito) overlayCarrito.classList.remove('visible'); });
+
+    // Botón "Seleccionar ubicación en el mapa" en lugar del antiguo "Revisar Pedido"
+    $('#btn-revisar-pedido').addEventListener('click', () => {
+      if (carrito.length === 0) { alert('Agrega productos primero.'); return; }
+      if (!validarFormulario()) return;
+      // Guardar datos del formulario temporalmente
+      datosFormularioTemporal = obtenerDatosFormulario();
+      // Inicializar mapa de selección si no está listo
+      inicializarMapaSeleccion();
+      // Invalidar tamaño después de mostrar
+      setTimeout(() => {
+        if (mapaSeleccionUbicacion) mapaSeleccionUbicacion.invalidateSize();
+      }, 200);
+      overlayCarrito.classList.remove('visible');
+      abrirOverlay(overlayMapaUbicacion);
+    });
+
+    // Cerrar modal de mapa de ubicación
+    $('#btn-cerrar-mapa-ubicacion').addEventListener('click', () => {
+      overlayMapaUbicacion.classList.remove('visible');
+      // Volver al carrito
+      renderizarCarrito();
+      abrirOverlay(overlayCarrito);
+    });
+    overlayMapaUbicacion.addEventListener('click', (e) => { 
+      if (e.target === overlayMapaUbicacion) overlayMapaUbicacion.classList.remove('visible'); 
+    });
+
+    // Confirmar ubicación y proceder a revisión
+    $('#btn-confirmar-ubicacion').addEventListener('click', () => {
+      if (!ubicacionSeleccionada || (!ubicacionSeleccionada.lat && !ubicacionSeleccionada.lng)) {
+        alert('Selecciona una ubicación en el mapa.');
+        return;
+      }
+      // Cerrar modal de mapa y abrir revisión
+      overlayMapaUbicacion.classList.remove('visible');
+      
+      const datos = datosFormularioTemporal;
+      const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+      let html = `<div style="font-size:0.85rem;">
+        <p><strong>Cliente:</strong> ${escaparHTML(datos.nombre)}</p>
+        <p><strong>Dirección:</strong> ${escaparHTML(datos.direccion)}</p>
+        <p><strong>Tel:</strong> ${escaparHTML(datos.telefono)}</p>
+        <p><strong>Ubicación:</strong> 📍 Lat: ${ubicacionSeleccionada.lat.toFixed(4)}, Lng: ${ubicacionSeleccionada.lng.toFixed(4)}</p>
+      </div><hr style="border-color:#f0ede8;margin:10px 0;"><div style="font-size:0.85rem;">`;
+      carrito.forEach(item => html += `<p>• ${escaparHTML(item.nombre)} x${item.cantidad} = ${formatPrecio(item.precio*item.cantidad)}</p>`);
+      html += '</div>';
+      $('#revision-desglose').innerHTML = html;
+      $('#revision-total').textContent = `Total General: ${formatPrecio(total)}`;
+      abrirOverlay(overlayRevision);
+    });
+
+    // Revisión
+    $('#btn-cerrar-revision').addEventListener('click', () => overlayRevision.classList.remove('visible'));
+    overlayRevision.addEventListener('click', (e) => { if (e.target === overlayRevision) overlayRevision.classList.remove('visible'); });
+
+    $('#btn-editar-pedido').addEventListener('click', () => {
+      overlayRevision.classList.remove('visible');
+      renderizarCarrito();
+      abrirOverlay(overlayCarrito);
+    });
+
+    $('#btn-proceder-pago').addEventListener('click', () => {
+      overlayRevision.classList.remove('visible');
+      abrirOverlay(overlayMetodoPago);
+    });
+
+    // Método de pago
+    $('#btn-cerrar-metodo-pago').addEventListener('click', () => overlayMetodoPago.classList.remove('visible'));
+    overlayMetodoPago.addEventListener('click', (e) => { if (e.target === overlayMetodoPago) overlayMetodoPago.classList.remove('visible'); });
+
+    $('#opcion-efectivo').addEventListener('click', () => { 
+      overlayMetodoPago.classList.remove('visible'); 
+      subirPedido('efectivo'); 
+    });
+    $('#opcion-qr').addEventListener('click', () => { 
+      overlayMetodoPago.classList.remove('visible'); 
+      abrirOverlay(overlayQr); 
+    });
+
+    // QR
+    $('#btn-cerrar-qr').addEventListener('click', () => overlayQr.classList.remove('visible'));
+    overlayQr.addEventListener('click', (e) => { if (e.target === overlayQr) overlayQr.classList.remove('visible'); });
+    $('#btn-descargar-qr').addEventListener('click', descargarQR);
+    $('#btn-listo-seguimiento').addEventListener('click', () => { 
+      overlayQr.classList.remove('visible'); 
+      subirPedido('qr'); 
+    });
+
+    // Estrellas calificación
+    $$('#estrellas-container .estrella').forEach(e => e.addEventListener('click', () => {
+      calificacionEstrellas = parseInt(e.dataset.val);
+      actualizarEstrellasUI();
+    }));
+    $('#btn-enviar-calificacion').addEventListener('click', enviarCalificacion);
+    overlayCalificacion.addEventListener('click', (e) => {
+      if (e.target === overlayCalificacion) {
+        overlayCalificacion.classList.remove('visible');
+        calificacionYaMostrada = true;
+        limpiarPedidoLocalStorage();
+        barraPedidoActivo.classList.remove('visible');
+        actualizarBarraPedidoActivo();
+      }
+    });
+
+    // Chat
+    $('#btn-enviar-msg').addEventListener('click', enviarMensajeTexto);
+    $('#input-mensaje').addEventListener('keydown', (e) => { if (e.key === 'Enter') enviarMensajeTexto(); });
+    $('#btn-adjuntar').addEventListener('click', () => $('#input-file-oculto').click());
+    $('#input-file-oculto').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) { alert('Selecciona una imagen válida.'); return; }
+      try {
+        const b64 = await procesarImagen(file);
+        await enviarImagen(b64);
+      } catch (err) { alert('Error al procesar la imagen.'); }
+      e.target.value = '';
+    });
+
+    // Botón volver al catálogo (preserva el nombre original)
+    $('#btn-volver-catalogo').addEventListener('click', () => {
+      ocultarSeguimiento();
+      actualizarBarraPedidoActivo();
+    });
+
+    // Barra de pedido activo
+    barraPedidoActivo.addEventListener('click', () => {
+      const data = obtenerPedidoLocalStorage();
+      if (data && data.id) mostrarSeguimiento(data.id);
+    });
+
+    // Restaurar sesión (función original preservada)
+    function restaurarSesion() {
+      const data = obtenerPedidoLocalStorage();
+      if (data && data.id && data.estado !== 'entregado' && data.estado !== 'cancelado') {
+        pedidoActualId = data.id;
+        estadoPedidoActual = data.estado;
+        calificacionYaMostrada = false;
+        mostrarSeguimiento(data.id);
+      } else if (data && (data.estado === 'entregado' || data.estado === 'cancelado')) {
+        limpiarPedidoLocalStorage();
+      }
+      actualizarBarraPedidoActivo();
+    }
+
+    // Arranque
+    iniciarApp();
+    restaurarSesion();
+    actualizarBadge();
+    renderizarCarrito();
+    console.log('🍔 App lista con mapas avanzados');
+  </script>
+</body>
+</html>

@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <title>Gato Veloz · Repartidor</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+
+  <style>
+    /* ========== GATO VELOZ · REPARTIDOR ========== */
+    :root {
+      --bg-primary: #0B0F17;
+      --bg-secondary: #161B22;
+      --bg-card: #1D2433;
+      --text-primary: #FFFFFF;
+      --text-secondary: #BFC8D4;
+      --border-color: rgba(0,183,255,0.15);
+      --neon-blue: #00B7FF;
+      --neon-blue-dark: #0066CC;
+      --orange-main: #FF7A00;
+      --orange-bright: #FFA500;
+      --shadow-glow: 0 0 30px rgba(0,183,255,0.06);
+      --shadow-card: 0 8px 32px rgba(0,0,0,0.6);
+      --radius-card: 16px;
+      --radius-btn: 30px;
+      --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 16px 12px 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .header {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      border-radius: var(--radius-card);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-card);
+      margin-bottom: 24px;
+    }
+    .header .logo { font-size: 32px; }
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--orange-bright), var(--neon-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header p { font-size: 0.75rem; color: var(--text-secondary); letter-spacing: 0.3px; text-transform: uppercase; }
+
+    .pedidos-container {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .pedido-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-card);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-card);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: all 0.3s ease;
+    }
+    .pedido-card:hover { border-color: var(--neon-blue); }
+
+    .pedido-card.estado-en_camino { border-left: 4px solid var(--neon-blue); }
+    .pedido-card.estado-en_cocina { border-left: 4px solid var(--orange-main); }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pedido-id {
+      font-weight: 700;
+      font-size: 0.9rem;
+      background: rgba(255,255,255,0.05);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border-color);
+    }
+    .estado-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      color: #fff;
+    }
+    .estado-en_cocina .estado-badge { background: var(--orange-main); }
+    .estado-en_camino .estado-badge { background: var(--neon-blue); }
+
+    .cliente-nombre { font-weight: 600; font-size: 1.1rem; }
+    .info-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    .btn-llamar {
+      background: var(--neon-blue);
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .direccion {
+      background: rgba(255,255,255,0.03);
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      border: 1px solid var(--border-color);
+    }
+    .total {
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--orange-bright);
+    }
+    .acciones {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .btn-accion {
+      border: none;
+      border-radius: var(--radius-btn);
+      padding: 10px 18px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: linear-gradient(135deg, var(--orange-main), var(--neon-blue));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(0,183,255,0.25);
+      flex:1;
+    }
+    .btn-accion.entregar {
+      background: linear-gradient(135deg, #00B7FF, #0066CC);
+    }
+    .btn-chat, .btn-ruta {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      border-radius: var(--radius-btn);
+      padding: 8px 16px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-chat:hover, .btn-ruta:hover { border-color: var(--neon-blue); }
+
+    .mini-mapa {
+      height: 130px;
+      width: 100%;
+      border-radius: 12px;
+      margin-top: 8px;
+      background: #0F141F;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+    }
+
+    /* MODALES */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+    .modal-chat {
+      background: var(--bg-secondary);
+      width: 90%;
+      max-width: 400px;
+      max-height: 80vh;
+      border-radius: var(--radius-card);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+    .modal-header {
+      background: var(--bg-card);
+      padding: 16px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .modal-header button {
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .mensajes-lista {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 50vh;
+      background: var(--bg-primary);
+    }
+    .mensaje {
+      max-width: 80%;
+      padding: 8px 14px;
+      border-radius: 18px;
+      font-size: 0.85rem;
+    }
+    .mensaje.remitente-admin {
+      align-self: flex-start;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+    .mensaje.remitente-repartidor {
+      align-self: flex-end;
+      background: linear-gradient(135deg, var(--orange-main), var(--neon-blue));
+      color: #fff;
+    }
+    .chat-input-area {
+      display: flex;
+      padding: 10px;
+      border-top: 1px solid var(--border-color);
+      gap: 8px;
+      background: var(--bg-card);
+    }
+    .chat-input-area input {
+      flex: 1;
+      padding: 10px 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 30px;
+      background: rgba(255,255,255,0.04);
+      color: #fff;
+    }
+    .chat-input-area button {
+      background: linear-gradient(135deg, var(--orange-main), var(--neon-blue));
+      color: #fff;
+      border: none;
+      border-radius: 30px;
+      padding: 10px 20px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .modal-ruta-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-ruta-contenido {
+      background: var(--bg-secondary);
+      width: 95%;
+      max-width: 500px;
+      height: 80vh;
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid var(--border-color);
+    }
+    .modal-ruta-header {
+      background: var(--bg-card);
+      padding: 12px 16px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .modal-ruta-header button {
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    #mapa-ruta {
+      flex: 1;
+      background: var(--bg-primary);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-secondary);
+    }
+    .empty-state span { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">🐱</span>
+    <div>
+      <h1>Gato Veloz</h1>
+      <p>🛵 Repartidor</p>
+    </div>
+  </div>
+
+  <div class="pedidos-container" id="pedidos-container"></div>
+
+  <!-- Modal Chat -->
+  <div class="modal-overlay" id="chat-modal">
+    <div class="modal-chat">
+      <div class="modal-header">
+        <span>💬 Chat con cliente</span>
+        <button id="cerrar-chat">&times;</button>
+      </div>
+      <div class="mensajes-lista" id="mensajes-lista"></div>
+      <div class="chat-input-area">
+        <input type="text" id="chat-input" placeholder="Escribe un mensaje...">
+        <button id="enviar-chat">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Mapa Ruta -->
+  <div class="modal-ruta-overlay" id="ruta-modal">
+    <div class="modal-ruta-contenido">
+      <div class="modal-ruta-header">
+        <span>🗺️ Ruta hacia el cliente</span>
+        <button id="cerrar-ruta">&times;</button>
+      </div>
+      <div id="mapa-ruta"></div>
+    </div>
+  </div>
+
+  <!-- Leaflet Routing Machine -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDgApffq4PiRvrN5FTMqOWm-vIOb5ZEsvc",
+      authDomain: "base-de-datos-2026-c180f.firebaseapp.com",
+      databaseURL: "https://base-de-datos-2026-c180f-default-rtdb.firebaseio.com",
+      projectId: "base-de-datos-2026-c180f",
+      storageBucket: "base-de-datos-2026-c180f.firebasestorage.app",
+      messagingSenderId: "34629949457",
+      appId: "1:34629949457:web:0047bff04014d0104df9b0"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Estado global
+    const pedidosContainer = document.getElementById('pedidos-container');
+    const mapasActivos = {};       // mini mapas
+    const gpsWatches = {};
+    let chatActualRef = null;
+    let chatPedidoId = null;
+
+    // Para la ruta (modal)
+    let mapaRuta = null;
+    let routingControlRuta = null;
+    let marcadorRepartidorRuta = null;
+    let marcadorClienteRuta = null;
+    let rutaPedidoId = null;
+    let rutaUnsubscribeUbicacionRep = null;
+    let rutaUnsubscribeUbicacionCli = null;
+
+    // ---------- CHAT ----------
+    const chatModal = document.getElementById('chat-modal');
+    const mensajesLista = document.getElementById('mensajes-lista');
+    const chatInput = document.getElementById('chat-input');
+
+    function abrirChat(pedidoId) {
+      chatPedidoId = pedidoId;
+      chatModal.style.display = 'flex';
+      mensajesLista.innerHTML = '';
+      if (chatActualRef) { chatActualRef.off(); chatActualRef = null; }
+      const chatRef = db.ref(`pedidos/${pedidoId}/chat`);
+      chatActualRef = chatRef;
+      chatRef.on('child_added', (snap) => {
+        const msg = snap.val();
+        agregarMensaje(msg.remitente, msg.texto);
+      });
+    }
+
+    function cerrarChat() {
+      chatModal.style.display = 'none';
+      if (chatActualRef) { chatActualRef.off(); chatActualRef = null; }
+      chatPedidoId = null;
+      mensajesLista.innerHTML = '';
+    }
+
+    function agregarMensaje(remitente, texto) {
+      const div = document.createElement('div');
+      div.className = `mensaje remitente-${remitente}`;
+      div.textContent = texto;
+      mensajesLista.appendChild(div);
+      mensajesLista.scrollTop = mensajesLista.scrollHeight;
+    }
+
+    document.getElementById('cerrar-chat').addEventListener('click', cerrarChat);
+    chatModal.addEventListener('click', (e) => { if (e.target === chatModal) cerrarChat(); });
+    document.getElementById('enviar-chat').addEventListener('click', () => {
+      const texto = chatInput.value.trim();
+      if (!texto || !chatPedidoId) return;
+      db.ref(`pedidos/${chatPedidoId}/chat`).push({
+        remitente: 'repartidor',
+        texto: texto,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+      chatInput.value = '';
+    });
+
+    // ---------- GEOLOCALIZACIÓN (ESCRITURA CORRECTA) ----------
+    function iniciarGPS(pedidoId) {
+      if (!navigator.geolocation) return;
+      if (gpsWatches[pedidoId]) return;
+
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const { latitude, longitude, heading } = pos.coords;
+          db.ref(`pedidos/${pedidoId}/ubicacionRepartidor`).set({
+            lat: latitude,
+            lng: longitude,
+            heading: heading || 0,
+            ultimaActualizacion: firebase.database.ServerValue.TIMESTAMP
+          });
+        },
+        (err) => {
+          console.error('Error GPS:', err);
+          alert('Error al obtener ubicación. Verifica permisos.');
+        },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+      );
+      gpsWatches[pedidoId] = watchId;
+    }
+
+    function detenerGPS(pedidoId) {
+      if (gpsWatches[pedidoId]) {
+        navigator.geolocation.clearWatch(gpsWatches[pedidoId]);
+        delete gpsWatches[pedidoId];
+      }
+    }
+
+    // ---------- MINI MAPA EN TARJETA ----------
+    function crearMiniMapa(pedidoId, containerDiv) {
+      if (mapasActivos[pedidoId]) return;
+      const mapa = L.map(containerDiv, {
+        zoomControl: false,
+        attributionControl: false,
+        dragging: false,
+        touchZoom: false,
+        scrollWheelZoom: false
+      }).setView([0, 0], 16);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(mapa);
+
+      const marcador = L.marker([0, 0]).addTo(mapa);
+      const refUbicacion = db.ref(`pedidos/${pedidoId}/ubicacionRepartidor`);
+      const listener = refUbicacion.on('value', (snap) => {
+        const data = snap.val();
+        if (data && data.lat && data.lng) {
+          const latlng = [data.lat, data.lng];
+          marcador.setLatLng(latlng);
+          mapa.setView(latlng, 16);
+        }
+      });
+      mapasActivos[pedidoId] = { mapa, marcador, refUbicacion, listener };
+    }
+
+    function destruirMiniMapa(pedidoId) {
+      const obj = mapasActivos[pedidoId];
+      if (obj) {
+        obj.refUbicacion.off('value', obj.listener);
+        obj.mapa.remove();
+        delete mapasActivos[pedidoId];
+      }
+    }
+
+    // ---------- ACCIONES ----------
+    function aceptarPedido(pedidoId) {
+      db.ref(`pedidos/${pedidoId}`).update({ estado: 'en_camino' })
+        .then(() => iniciarGPS(pedidoId))
+        .catch(err => { console.error(err); alert('Error al aceptar pedido'); });
+    }
+
+    function entregarPedido(pedidoId) {
+      db.ref(`pedidos/${pedidoId}`).update({ estado: 'entregado' })
+        .then(() => {
+          detenerGPS(pedidoId);
+          destruirMiniMapa(pedidoId);
+        })
+        .catch(err => { console.error(err); alert('Error al marcar entregado'); });
+    }
+
+    // ---------- MAPA DE RUTA (MODAL) ----------
+    function abrirMapaRuta(pedidoId) {
+      rutaPedidoId = pedidoId;
+      document.getElementById('ruta-modal').style.display = 'flex';
+      if (mapaRuta) { mapaRuta.remove(); mapaRuta = null; }
+
+      mapaRuta = L.map('mapa-ruta').setView([0, 0], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(mapaRuta);
+
+      // Crear marcadores vacíos
+      const motoIcon = L.divIcon({ html: '🏍️', className: '', iconSize: [36,36], iconAnchor: [18,18] });
+      const clienteIcon = L.divIcon({ html: '📍', className: '', iconSize: [30,30], iconAnchor: [15,30] });
+      marcadorRepartidorRuta = L.marker([0,0], { icon: motoIcon }).addTo(mapaRuta);
+      marcadorClienteRuta = L.marker([0,0], { icon: clienteIcon }).addTo(mapaRuta);
+
+      // Suscribirse a ubicaciones
+      const repRef = db.ref(`pedidos/${pedidoId}/ubicacionRepartidor`);
+      const cliRef = db.ref(`pedidos/${pedidoId}/ubicacionCliente`);
+
+      rutaUnsubscribeUbicacionRep = repRef.on('value', (snap) => {
+        const rep = snap.val();
+        if (rep && rep.lat && rep.lng) {
+          marcadorRepartidorRuta.setLatLng([rep.lat, rep.lng]);
+          actualizarRuta();
+        }
+      });
+
+      rutaUnsubscribeUbicacionCli = cliRef.on('value', (snap) => {
+        const cli = snap.val();
+        if (cli && cli.lat && cli.lng) {
+          // CORRECCIÓN DEL BUG: Se usa cli.lng (longitud)
+          marcadorClienteRuta.setLatLng([cli.lat, cli.lng]);
+          actualizarRuta();
+        }
+      });
+
+      // Función interna para refrescar la ruta
+      function actualizarRuta() {
+        const repLatLng = marcadorRepartidorRuta.getLatLng();
+        const cliLatLng = marcadorClienteRuta.getLatLng();
+        if (!repLatLng || !cliLatLng || repLatLng.lat === 0 || cliLatLng.lat === 0) return;
+
+        if (routingControlRuta) {
+          routingControlRuta.setWaypoints([repLatLng, cliLatLng]);
+        } else {
+          routingControlRuta = L.Routing.control({
+            waypoints: [repLatLng, cliLatLng],
+            lineOptions: { styles: [{ color: '#FF4B2B', weight: 5 }] },
+            createMarker: () => null,
+            show: false,
+            addWaypoints: false
+          }).addTo(mapaRuta);
+        }
+        mapaRuta.fitBounds(L.latLngBounds([repLatLng, cliLatLng]), { padding: [30,30] });
+      }
+    }
+
+    function cerrarMapaRuta() {
+      document.getElementById('ruta-modal').style.display = 'none';
+      if (rutaUnsubscribeUbicacionRep) {
+        db.ref(`pedidos/${rutaPedidoId}/ubicacionRepartidor`).off('value', rutaUnsubscribeUbicacionRep);
+        rutaUnsubscribeUbicacionRep = null;
+      }
+      if (rutaUnsubscribeUbicacionCli) {
+        db.ref(`pedidos/${rutaPedidoId}/ubicacionCliente`).off('value', rutaUnsubscribeUbicacionCli);
+        rutaUnsubscribeUbicacionCli = null;
+      }
+      if (mapaRuta) { mapaRuta.remove(); mapaRuta = null; routingControlRuta = null; }
+      rutaPedidoId = null;
+    }
+
+    document.getElementById('cerrar-ruta').addEventListener('click', cerrarMapaRuta);
+    document.getElementById('ruta-modal').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('ruta-modal')) cerrarMapaRuta();
+    });
+
+    // ---------- RENDERIZADO DE PEDIDOS ----------
+    function renderizarPedidos(snapshot) {
+      const pedidos = snapshot.val();
+      pedidosContainer.innerHTML = '';
+
+      if (!pedidos) {
+        pedidosContainer.innerHTML = `<div class="empty-state"><span>📭</span><p>No hay pedidos activos</p></div>`;
+        return;
+      }
+
+      const filtrados = Object.entries(pedidos).filter(([id, p]) =>
+        p.estado === 'en_cocina' || p.estado === 'en_camino'
+      );
+      if (filtrados.length === 0) {
+        pedidosContainer.innerHTML = `<div class="empty-state"><span>🛵</span><p>Esperando nuevos pedidos...</p></div>`;
+        return;
+      }
+
+      // Orden: en camino primero
+      filtrados.sort(([,a], [,b]) => {
+        if (a.estado === 'en_camino' && b.estado !== 'en_camino') return -1;
+        if (a.estado !== 'en_camino' && b.estado === 'en_camino') return 1;
+        return 0;
+      });
+
+      filtrados.forEach(([pedidoId, pedido]) => {
+        const card = document.createElement('div');
+        card.className = `pedido-card estado-${pedido.estado}`;
+        card.dataset.pedidoId = pedidoId;
+
+        // Extraer datos del cliente (objeto)
+        const cliente = pedido.cliente || {};
+        const nombreCliente = cliente.nombre || 'Cliente';
+        const telefonoCliente = cliente.telefono || '---';
+        const direccionCliente = cliente.direccion || 'Sin dirección';
+        const totalPedido = pedido.total ? parseFloat(pedido.total).toFixed(2) : '0.00';
+
+        card.innerHTML = `
+          <div class="card-header">
+            <span class="pedido-id">#${pedidoId.slice(-6)}</span>
+            <span class="estado-badge">${pedido.estado === 'en_cocina' ? '🍳 Listo' : '🏍️ En camino'}</span>
+          </div>
+          <div class="cliente-nombre">${nombreCliente}</div>
+          <div class="info-line">
+            📞 ${telefonoCliente}
+            <a href="tel:${telefonoCliente}" class="btn-llamar">📞 Llamar</a>
+          </div>
+          <div class="direccion">📍 ${direccionCliente}</div>
+          <div class="total">💰 Bs. ${totalPedido}</div>
+          <div class="acciones">
+            ${pedido.estado === 'en_cocina' 
+              ? `<button class="btn-accion aceptar" data-id="${pedidoId}">🛵 Aceptar y Llevar</button>`
+              : `<button class="btn-accion entregar" data-id="${pedidoId}">✅ Marcar Entregado</button>`
+            }
+            <button class="btn-chat" data-id="${pedidoId}">💬 Chat</button>
+            ${pedido.estado === 'en_camino' ? `<button class="btn-ruta" data-id="${pedidoId}">🗺️ Ruta</button>` : ''}
+          </div>
+          <div class="mini-mapa" data-mini-mapa></div>
+        `;
+
+        pedidosContainer.appendChild(card);
+
+        // Eventos
+        card.querySelector('.btn-accion.aceptar')?.addEventListener('click', () => aceptarPedido(pedidoId));
+        card.querySelector('.btn-accion.entregar')?.addEventListener('click', () => entregarPedido(pedidoId));
+        card.querySelector('.btn-chat').addEventListener('click', () => abrirChat(pedidoId));
+        const btnRuta = card.querySelector('.btn-ruta');
+        if (btnRuta) btnRuta.addEventListener('click', () => abrirMapaRuta(pedidoId));
+
+        const miniMapaDiv = card.querySelector('[data-mini-mapa]');
+        if (pedido.estado === 'en_camino') {
+          if (!mapasActivos[pedidoId]) {
+            crearMiniMapa(pedidoId, miniMapaDiv);
+          }
+        } else {
+          destruirMiniMapa(pedidoId);
+          miniMapaDiv.innerHTML = '';
+        }
+      });
+
+      // Limpiar recursos de pedidos eliminados
+      const idsActuales = filtrados.map(([id]) => id);
+      Object.keys(mapasActivos).forEach(id => {
+        if (!idsActuales.includes(id)) destruirMiniMapa(id);
+      });
+      Object.keys(gpsWatches).forEach(id => {
+        if (!idsActuales.includes(id)) detenerGPS(id);
+      });
+    }
+
+    // ---------- INICIALIZACIÓN ----------
+    const pedidosRef = db.ref('pedidos');
+    pedidosRef.on('value', (snapshot) => {
+      renderizarPedidos(snapshot);
+    }, (error) => {
+      console.error(error);
+      pedidosContainer.innerHTML = `<div class="empty-state"><span>⚠️</span><p>Error de conexión</p></div>`;
+    });
+
+    window.addEventListener('beforeunload', () => {
+      Object.keys(gpsWatches).forEach(detenerGPS);
+      if (chatActualRef) chatActualRef.off();
+      cerrarMapaRuta(); // limpiar listeners
+    });
+  </script>
+</body>
+</html>
